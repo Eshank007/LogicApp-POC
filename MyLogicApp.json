@@ -1,0 +1,663 @@
+{
+    "definition": {
+        "$schema": "https://schema.managemenwrgt.azuqfrfvsqare.com/providers/Microsoft.affafLogic/sssschemas/2016-06jkaja-01/workflowjajkjs.json#",
+        "actions": {
+            "Check_Current_Running_Claims_Master_Orc_DV_Job": {
+                "inputs": {
+                    "authentication": {
+                        "password": "@{parameters('PWD')}",
+                        "type": "Basic",
+                        "username": "@{parameters('USERNAME')}"
+                    },
+                    "method": "GET",
+                    "uri": "https://matp.isjskldnkdfnknkdj/running"
+                },
+                "runAfter": {},
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "transferMode": "Chunked"
+                    }
+                },
+                "type": "Http"
+            },
+            "Check_Previous_Master_Orc_DV_Job": {
+                "inputs": {
+                    "authentication": {
+                        "password": "@{parameters('PWD')}",
+                        "type": "Basic",
+                        "username": "@{parameters('USERNAME')}"
+                    },
+                    "method": "GET",
+                    "uri": "https://dldlfejlfkjlekfpkeflmd,vmld,noifwjfpowf;mklvnnpisinv"
+                },
+                "runAfter": {},
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "transferMode": "Chunked"
+                    }
+                },
+                "type": "Http"
+            },
+            "Compose": {
+                "inputs": "@body('Check_Previous_Master_Orc_DV_Job')[0]['state']",
+                "runAfter": {
+                    "Check_Previous_Master_Orc_DV_Job": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Compose"
+            },
+            "Condition": {
+                "actions": {},
+                "else": {
+                    "actions": {
+                        "Send_email_-_Unable_to_Connect_with_Matillion": {
+                            "inputs": {
+                                "body": {
+                                    "from": "@parameters('FromMail')",
+                                    "ishtml": true,
+                                    "subject": "Prod - Claims Connect Stage Load - Unable to Connect with Matillion",
+                                    "text": "<p>Hi Team,<br><br>Prod Claims Connect Stage Load Logic App was unable to connect to Prod Matillion Instance. This may have happened due to Matillion Instance downtime.<br><br>Body: &nbsp;@{body('Credential_Check_-_HTTP')}<br><br>Regards<br>DevOps Team</p>",
+                                    "to": "@parameters('ToMail')"
+                                },
+                                "host": {
+                                    "connection": {
+                                        "referenceName": "sendgrid"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/v4/mail/send"
+                            },
+                            "type": "ApiConnection"
+                        }
+                    }
+                },
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                "@outputs('Credential_Check_-_HTTP')?['statusCode']",
+                                200
+                            ]
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Credential_Check_-_HTTP": [
+                        "Succeeded",
+                        "FAILED"
+                    ]
+                },
+                "type": "If"
+            },
+            "Condition_-_Stage_Load_Trigger": {
+                "actions": {
+                    "Condition_-_Trigger_Stage_Load_Job": {
+                        "actions": {
+                            "Parse_JSON_-_Trigger_Stage_Load_Job": {
+                                "inputs": {
+                                    "content": "@body('Trigger_Stage_Load_Job')",
+                                    "schema": {
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer"
+                                            },
+                                            "msg": {
+                                                "type": "string"
+                                            },
+                                            "success": {
+                                                "type": "boolean"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "ParseJson"
+                            },
+                            "Queued_-_Delay": {
+                                "inputs": {
+                                    "interval": {
+                                        "count": 5,
+                                        "unit": "Minute"
+                                    }
+                                },
+                                "runAfter": {
+                                    "Parse_JSON_-_Trigger_Stage_Load_Job": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                "type": "Wait"
+                            },
+                            "Switch": {
+                                "cases": {
+                                    "Cancelled": {
+                                        "actions": {
+                                            "Send_email_-_Job_Cancelled": {
+                                                "inputs": {
+                                                    "body": {
+                                                        "from": "@parameters('FromMail')",
+                                                        "ishtml": true,
+                                                        "subject": "Prod - Claims Connect Stage Load - Job Cancelled",
+                                                        "text": "<p>Hi Team,<br><br>Prod Claims Connect Stage Load job status is CANCELLED which means job was either cancelled by sudden Matillion instance downtime or it has been cancelled manually from the Matillion UI while it was running.<br><br>Regards<br>DevOps Team</p>",
+                                                        "to": "@parameters('ToMail')"
+                                                    },
+                                                    "host": {
+                                                        "connection": {
+                                                            "referenceName": "sendgrid"
+                                                        }
+                                                    },
+                                                    "method": "post",
+                                                    "path": "/v4/mail/send"
+                                                },
+                                                "type": "ApiConnection"
+                                            }
+                                        },
+                                        "case": "CANCELLED"
+                                    },
+                                    "Failed_Case": {
+                                        "actions": {
+                                            "Send_email_-_Job_Failed": {
+                                                "inputs": {
+                                                    "body": {
+                                                        "from": "@parameters('FromMail')",
+                                                        "ishtml": true,
+                                                        "subject": "Prod - Claims Connect Stage Load - Job Failed",
+                                                        "text": "<p>Hi Team,<br><br>Prod Claims Connect Stage Load job status is Failed which means job has failed to complete in Matillion please check job logs in Matillion.<br><br><br>Regards<br>DevOps Team</p>",
+                                                        "to": "@parameters('ToMail')"
+                                                    },
+                                                    "host": {
+                                                        "connection": {
+                                                            "referenceName": "sendgrid"
+                                                        }
+                                                    },
+                                                    "method": "post",
+                                                    "path": "/v4/mail/send"
+                                                },
+                                                "type": "ApiConnection"
+                                            }
+                                        },
+                                        "case": "FAILED"
+                                    },
+                                    "Null_Case": {
+                                        "actions": {
+                                            "Send_email_-_Null_Scenario": {
+                                                "inputs": {
+                                                    "body": {
+                                                        "from": "@parameters('FromMail')",
+                                                        "ishtml": true,
+                                                        "subject": "Prod - Claims Connect Stage Load - Job Failed",
+                                                        "text": "<p>Hi Team,<br><br>Prod Claims Connect Stage Load job or the Logic app has failed to complete. It may have happened due to Matillion shutdown while the job was Running. Please check Logic app and Matillion logs.<br><br><br>Regards<br>DevOps Team</p>",
+                                                        "to": "@parameters('ToMail')"
+                                                    },
+                                                    "host": {
+                                                        "connection": {
+                                                            "referenceName": "sendgrid"
+                                                        }
+                                                    },
+                                                    "method": "post",
+                                                    "path": "/v4/mail/send"
+                                                },
+                                                "type": "ApiConnection"
+                                            }
+                                        },
+                                        "case": "null"
+                                    },
+                                    "Queued_Case": {
+                                        "actions": {
+                                            "Send_email_-_Job_Queued": {
+                                                "inputs": {
+                                                    "body": {
+                                                        "from": "@parameters('FromMail')",
+                                                        "ishtml": true,
+                                                        "subject": "Prod - Claims Connect Stage Load - Job Queued",
+                                                        "text": "<p>Hi Team,<br><br>Prod Claims Connect Stage Load job status is still QUEUED which means job couldn't start in Matillion as it has been in queued state for more than 2.5 hours i.e. Timeout Period after being triggered from logic app.<br><br>Trigger Response Body: @{body('Trigger_Stage_Load_Job')}<br>Job State:&nbsp; @{body('Filter_array')[0]}<br><br>Regards<br>DevOps Team</p>",
+                                                        "to": "@parameters('ToMail')"
+                                                    },
+                                                    "host": {
+                                                        "connection": {
+                                                            "referenceName": "sendgrid"
+                                                        }
+                                                    },
+                                                    "method": "post",
+                                                    "path": "/v4/mail/send"
+                                                },
+                                                "type": "ApiConnection"
+                                            }
+                                        },
+                                        "case": "QUEUED"
+                                    },
+                                    "Running_Case": {
+                                        "actions": {
+                                            "Send_email_-_Job_Running": {
+                                                "inputs": {
+                                                    "body": {
+                                                        "from": "@parameters('FromMail')",
+                                                        "ishtml": true,
+                                                        "subject": "Prod - Claims Connect Stage Load - Job Running",
+                                                        "text": "<p>Hi Team,<br><br>Prod Claims Connect Stage Load job status is still RUNNING which means job couldn't complete in Matillion under 2.5 hours i.e. Timeout Period after being triggered from logic app.<br><br><br>The job may be still running in Matillion Instance.<br><br>Regards<br>DevOps Team</p>",
+                                                        "to": "@parameters('ToMail')"
+                                                    },
+                                                    "host": {
+                                                        "connection": {
+                                                            "referenceName": "sendgrid"
+                                                        }
+                                                    },
+                                                    "method": "post",
+                                                    "path": "/v4/mail/send"
+                                                },
+                                                "type": "ApiConnection"
+                                            }
+                                        },
+                                        "case": "RUNNING"
+                                    },
+                                    "Success_Case": {
+                                        "actions": {
+                                            "HTTP": {
+                                                "inputs": {
+                                                    "method": "POST",
+                                                    "uri": "https://jdkvlsjpojgklvnklnsbknphyadkfnknksfhihfisjsfg/hjhsjhuh/0ZWUg233j3sVUgQc"
+                                                },
+                                                "runtimeConfiguration": {
+                                                    "contentTransfer": {
+                                                        "transferMode": "Chunked"
+                                                    }
+                                                },
+                                                "type": "Http"
+                                            }
+                                        },
+                                        "case": "SUCCESS"
+                                    }
+                                },
+                                "default": {
+                                    "actions": {
+                                        "Send_email_-_Any_other_Failure_Scenarios": {
+                                            "inputs": {
+                                                "body": {
+                                                    "from": "@parameters('FromMail')",
+                                                    "ishtml": true,
+                                                    "subject": "Prod - Claims Connect Stage Load - Job Failed",
+                                                    "text": "<p>Hi Team,<br><br>Prod Claims Connect Stage Load job or the Logic app has failed to complete. Please check Logic app and Matillion logs.</p><br><br><p><br>Regards<br>DevOps Team</p>",
+                                                    "to": "@parameters('ToMail')"
+                                                },
+                                                "host": {
+                                                    "connection": {
+                                                        "referenceName": "sendgrid"
+                                                    }
+                                                },
+                                                "method": "post",
+                                                "path": "/v4/mail/send"
+                                            },
+                                            "type": "ApiConnection"
+                                        }
+                                    }
+                                },
+                                "expression": "@coalesce(body('Parse_JSON_-_Task_API')?['state'], 'null')",
+                                "runAfter": {
+                                    "Until_-_Stage_Load_Gives_State": [
+                                        "Succeeded",
+                                        "FAILED"
+                                    ]
+                                },
+                                "type": "Switch"
+                            },
+                            "Until_-_Stage_Load_Gives_State": {
+                                "actions": {
+                                    "Delay": {
+                                        "inputs": {
+                                            "interval": {
+                                                "count": 2,
+                                                "unit": "Minute"
+                                            }
+                                        },
+                                        "runAfter": {
+                                            "Parse_JSON_-_Task_API": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "Wait"
+                                    },
+                                    "HTTP_-_Triggered_Stage_Load_Job_State_by_ID": {
+                                        "inputs": {
+                                            "authentication": {
+                                                "password": "@parameters('PWD')",
+                                                "type": "Basic",
+                                                "username": "@parameters('USERNAME')"
+                                            },
+                                            "method": "GET",
+                                            "uri": "https://matdfsp.inhfhkhkhk/hhfjhjfhj/ssuyy/twjbdj/E/task/id/@{body('Parse_JSON_-_Trigger_Stage_Load_Job')?['id']}"
+                                        },
+                                        "runtimeConfiguration": {
+                                            "contentTransfer": {
+                                                "transferMode": "Chunked"
+                                            }
+                                        },
+                                        "type": "Http"
+                                    },
+                                    "Parse_JSON_-_Task_API": {
+                                        "inputs": {
+                                            "content": "@body('HTTP_-_Triggered_Stage_Load_Job_State_by_ID')",
+                                            "schema": {
+                                                "properties": {
+                                                    "customerID": {
+                                                        "type": "integer"
+                                                    },
+                                                    "endTime": {
+                                                        "type": "integer"
+                                                    },
+                                                    "enqueuedTime": {
+                                                        "type": "integer"
+                                                    },
+                                                    "environmentID": {
+                                                        "type": "integer"
+                                                    },
+                                                    "environmentName": {
+                                                        "type": "string"
+                                                    },
+                                                    "groupName": {
+                                                        "type": "string"
+                                                    },
+                                                    "hasHistoricJobs": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "jobID": {
+                                                        "type": "integer"
+                                                    },
+                                                    "jobName": {
+                                                        "type": "string"
+                                                    },
+                                                    "jobNames": {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    },
+                                                    "message": {},
+                                                    "originatorID": {
+                                                        "type": "string"
+                                                    },
+                                                    "projectID": {
+                                                        "type": "integer"
+                                                    },
+                                                    "projectName": {
+                                                        "type": "string"
+                                                    },
+                                                    "rowCount": {
+                                                        "type": "integer"
+                                                    },
+                                                    "startTime": {
+                                                        "type": "integer"
+                                                    },
+                                                    "state": {
+                                                        "type": "string"
+                                                    },
+                                                    "tasks": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "componentID": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "componentName": {
+                                                                    "type": "string"
+                                                                },
+                                                                "endTime": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "jobID": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "jobName": {
+                                                                    "type": "string"
+                                                                },
+                                                                "jobRevision": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "jobTimestamp": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "message": {
+                                                                    "type": "string"
+                                                                },
+                                                                "parentID": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "rowCount": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "startTime": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "state": {
+                                                                    "type": "string"
+                                                                },
+                                                                "taskBatchID": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "taskID": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "type": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "taskID",
+                                                                "parentID",
+                                                                "type",
+                                                                "jobID",
+                                                                "jobName",
+                                                                "jobRevision",
+                                                                "jobTimestamp",
+                                                                "componentID",
+                                                                "componentName",
+                                                                "state",
+                                                                "rowCount",
+                                                                "startTime",
+                                                                "endTime",
+                                                                "message",
+                                                                "taskBatchID"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array"
+                                                    },
+                                                    "type": {
+                                                        "type": "string"
+                                                    },
+                                                    "versionID": {
+                                                        "type": "integer"
+                                                    },
+                                                    "versionName": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        },
+                                        "runAfter": {
+                                            "HTTP_-_Triggered_Stage_Load_Job_State_by_ID": [
+                                                "Succeeded"
+                                            ]
+                                        },
+                                        "type": "ParseJson"
+                                    }
+                                },
+                                "expression": "@equals(body('Parse_JSON_-_Task_API')?['state'], 'SUCCESS')",
+                                "limit": {
+                                    "count": 75,
+                                    "timeout": "PT2H30M"
+                                },
+                                "runAfter": {
+                                    "Queued_-_Delay": [
+                                        "SUCCEEDED"
+                                    ]
+                                },
+                                "type": "Until"
+                            }
+                        },
+                        "else": {
+                            "actions": {
+                                "Send_email_-_Trigger_Failure": {
+                                    "inputs": {
+                                        "body": {
+                                            "from": "@parameters('FromMail')",
+                                            "ishtml": true,
+                                            "subject": "Prod - Claims Connect Stage Load - Trigger Failure",
+                                            "text": "<p>Hi Team,<br><br>Prod Claims Connect Stage Load Logic App was unable to trigger the Claims Connect Stage Load job in Matillion.<br><br>Response Body: @{body('Trigger_Stage_Load_Job')}<br>Response Status Code: @{outputs('Trigger_Stage_Load_Job')?['statusCode']}<br><br>Regards<br>DevOps Team</p>",
+                                            "to": "@parameters('ToMail')"
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "referenceName": "sendgrid"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "path": "/v4/mail/send"
+                                    },
+                                    "type": "ApiConnection"
+                                }
+                            }
+                        },
+                        "expression": {
+                            "and": [
+                                {
+                                    "equals": [
+                                        "@outputs('Trigger_Stage_Load_Job')?['statusCode']",
+                                        200
+                                    ]
+                                }
+                            ]
+                        },
+                        "runAfter": {
+                            "Trigger_Stage_Load_Job": [
+                                "Succeeded",
+                                "FAILED"
+                            ]
+                        },
+                        "type": "If"
+                    },
+                    "Trigger_Stage_Load_Job": {
+                        "inputs": {
+                            "authentication": {
+                                "password": "@parameters('PWD')",
+                                "type": "Basic",
+                                "username": "@parameters('USERNAME')"
+                            },
+                            "method": "POST",
+                            "uri": "https://materp.hdhjdhd.hgfjfhjdhj/hjfhjhfjd/jgjgjjhwwo/run"
+                        },
+                        "runtimeConfiguration": {
+                            "contentTransfer": {
+                                "transferMode": "Chunked"
+                            }
+                        },
+                        "type": "Http"
+                    }
+                },
+                "else": {
+                    "actions": {
+                        "Send_email_-_Job_Check_Conditions_Failed": {
+                            "inputs": {
+                                "body": {
+                                    "from": "@parameters('FromMail')",
+                                    "ishtml": true,
+                                    "subject": "Prod - Claims Connect Stage Load - Job Check Conditions Failed",
+                                    "text": "<p>Hi Team,<br><br>Prod Claims Connect Stage Load Logic App was unable to move forward as one of the two conditions has failed.<br><br>Condition 1 - Master Orc DataVault job is currently running.<br>Condition 2 - Previous Master Orc DataVault job run is not successful.<br><br><br><br>Regards<br>DevOps Team</p>",
+                                    "to": "@parameters('ToMail')"
+                                },
+                                "host": {
+                                    "connection": {
+                                        "referenceName": "sendgrid"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/v4/mail/send"
+                            },
+                            "type": "ApiConnection"
+                        },
+                        "Terminate": {
+                            "inputs": {
+                                "runStatus": "Cancelled"
+                            },
+                            "runAfter": {
+                                "Send_email_-_Job_Check_Conditions_Failed": [
+                                    "SUCCEEDED"
+                                ]
+                            },
+                            "type": "Terminate"
+                        }
+                    }
+                },
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                "@outputs('Compose')",
+                                "SUCCESS"
+                            ]
+                        },
+                        {
+                            "equals": [
+                                "@length(body('Filter_array'))",
+                                0
+                            ]
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Compose": [
+                        "Succeeded",
+                        "FAILED"
+                    ],
+                    "Filter_array": [
+                        "Succeeded",
+                        "FAILED"
+                    ]
+                },
+                "type": "If"
+            },
+            "Credential_Check_-_HTTP": {
+                "inputs": {
+                    "authentication": {
+                        "password": "@parameters('PWD')",
+                        "type": "Basic",
+                        "username": "@parameters('USERNAME')"
+                    },
+                    "method": "GET",
+                    "uri": "https://matp.ikjdkkdkjd.jkkd/hjhhdk/jjhjsjskROD/id"
+                },
+                "runAfter": {},
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "transferMode": "Chunked"
+                    }
+                },
+                "type": "Http"
+            },
+            "Filter_array": {
+                "inputs": {
+                    "from": "@body('Check_Current_Running_Claims_Master_Orc_DV_Job')",
+                    "where": "@equals(item()['jobName'],'Master_Orc_Data_Vault_Claimworkspace_Db_Wkflw')"
+                },
+                "runAfter": {
+                    "Check_Current_Running_Claims_Master_Orc_DV_Job": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Query"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "triggers": {
+            "When_a_HTTP_request_is_received": {
+                "kind": "Http",
+                "type": "Request"
+            }
+        }
+    },
+    "kind": "Stateful",
+    "parameters": {}
+}
